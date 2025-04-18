@@ -14,7 +14,7 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'City name is required' });
     }
     // DONE: GET weather data from city name
-    const weatherData = await WeatherService.getWeatherByCity(cityName);
+    const weatherData = await WeatherService.getWeatherForCity(cityName);
     if (!weatherData) {
       return res.status(404).json({ error: 'Weather data not found' });
     }

@@ -3,37 +3,66 @@ import axios from 'axios';
 
 dotenv.config();
 
-// TODO: Define an interface for the Coordinates object
 interface Coordinates {
   latitude: number;
   longitude: number;
 }
 
-// TODO: Define a class for the Weather object
 interface Weather {
   temperature: number;
   description: string;
   city: string;
 }
-// TODO: Complete the WeatherService class
+
+interface GeocodeResponse {
+  lat: number;
+  lon: number;
+}
+
+interface WeatherResponse {
+  main: { temp: number };
+  weather: { description: string }[];
+  name: string;
+}
+
 class WeatherService {
- 
   private baseURL: string = 'https://api.openweathermap.org/data/2.5';
+  private geocodeURL: string = 'https://api.openweathermap.org/geo/1.0';
   private apiKey: string | undefined = process.env.API_KEY;
 
-  private async fetchLocationData(city: string): Promise<Coordinates> {
-    const url = `https://api.openweathermap.org/geo/1.0/direct?q=${city}&limit=1&appid=${this.apiKey}`;
-    const response = await axios.get(url);
-    const data = (response.data as any[])[0];
-    return { latitude: data.lat, longitude: data.lon };
+  private buildGeocodeQuery(city: string): string {
+    return `${this.geocodeURL}/direct?q=${encodeURIComponent(city)}&limit=1&appid=${this.apiKey}`;
   }
 
-  private async fetchWeatherData(coordinates: Coordinates): Promise<Weather> {
+  private buildWeatherQuery(coordinates: Coordinates): string {
     const { latitude, longitude } = coordinates;
-    const url = `${this.baseURL}/weather?lat=${latitude}&lon=${longitude}&appid=${this.apiKey}&units=metric`;
-    const response = await axios.get(url);
-    const data = response.data as { main: { temp: number }; weather: { description: string }[]; name: string };
+    return `${this.baseURL}/weather?lat=${latitude}&lon=${longitude}&appid=${this.apiKey}&units=metric`;
+  }
 
+  private async fetchLocationData(city: string): Promise<GeocodeResponse> {
+    const url = this.buildGeocodeQuery(city);
+    const response = await axios.get<GeocodeResponse[]>(url);
+    if (!response.data.length) {
+      throw new Error(`No location data found for "${city}".`);       
+    }
+    const data = response.data[0];
+    return { lat: data.lat, lon: data.lon };
+  }
+
+  private destructureLocationData(locationData: GeocodeResponse): Coordinates {
+    return {
+      latitude: locationData.lat,
+      longitude: locationData.lon,
+    };
+  }
+
+  private async fetchWeatherData(coordinates: Coordinates): Promise<WeatherResponse> {
+    const url = this.buildWeatherQuery(coordinates);
+    const response = await axios.get<WeatherResponse>(url);
+    return response.data;
+  }
+
+  private parseCurrentWeather(data: WeatherResponse): Weather {
     return {
       temperature: data.main.temp,
       description: data.weather[0].description,
@@ -41,29 +70,23 @@ class WeatherService {
     };
   }
 
-  public async getWeatherByCity(city: string): Promise<Weather> {
-    const coordinates = await this.fetchLocationData(city);
-    return this.fetchWeatherData(coordinates);
+  public async getWeatherForCity(city: string): Promise<Weather> {
+    try {
+      const locationData = await this.fetchLocationData(city);
+      const coordinates = this.destructureLocationData(locationData);
+      const rawWeatherData = await this.fetchWeatherData(coordinates);
+      return this.parseCurrentWeather(rawWeatherData);
+    } catch (error) {
+      console.error(`Failed to fetch weather for ${city}:`, error);
+      throw new Error('Unable to retrieve weather data. Please try again.');
+    }
   }
-  // TODO: Define the baseURL, API key, and city name properties
-  // TODO: Create fetchLocationData method
-  // private async fetchLocationData(query: string) {}
-  // TODO: Create destructureLocationData method
-  // private destructureLocationData(locationData: Coordinates): Coordinates {}
-  // TODO: Create buildGeocodeQuery method
-  // private buildGeocodeQuery(): string {}
-  // TODO: Create buildWeatherQuery method
-  // private buildWeatherQuery(coordinates: Coordinates): string {}
-  // TODO: Create fetchAndDestructureLocationData method
-  // private async fetchAndDestructureLocationData() {}
-  // TODO: Create fetchWeatherData method
-  // private async fetchWeatherData(coordinates: Coordinates) {}
-  // TODO: Build parseCurrentWeather method
-  // private parseCurrentWeather(response: any) {}
-  // TODO: Complete buildForecastArray method
-  // private buildForecastArray(currentWeather: Weather, weatherData: any[]) {}
-  // TODO: Complete getWeatherForCity method
-  // async getWeatherForCity(city: string) {}
+
+  // Optional: Build forecast array
+  //private buildForecastArray(currentWeather: Weather, weatherData: any[]): Weather[] {
+    // Placeholder logic; implement based on actual forecast structure if needed
+    //return [currentWeather];
+  //}
 }
 
 export default new WeatherService();
