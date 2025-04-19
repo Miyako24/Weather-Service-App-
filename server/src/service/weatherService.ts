@@ -26,9 +26,10 @@ interface WeatherResponse {
 }
 
 class WeatherService {
-  private baseURL: string = 'https://api.openweathermap.org/data/2.5';
-  private geocodeURL: string = 'https://api.openweathermap.org/geo/1.0';
-  private apiKey: string | undefined = process.env.API_KEY;
+
+    private baseURL: string = process.env.API_BASE_URL || 'https://api.openweathermap.org/data/2.5';
+    private geocodeURL: string = 'https://api.openweathermap.org/geo/1.0';
+    private apiKey: string | undefined = process.env.API_KEY;
 
   private buildGeocodeQuery(city: string): string {
     return `${this.geocodeURL}/direct?q=${encodeURIComponent(city)}&limit=1&appid=${this.apiKey}`;
